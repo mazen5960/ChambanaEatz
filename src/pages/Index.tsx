@@ -156,11 +156,7 @@ const Index = () => {
             <p className="mt-4 text-muted-foreground max-w-prose">
               Quick prefs, trending cuisines in your city, smart recommendations with deep links to Maps, Uber, and DoorDash — plus a fun Wheel of Food.
             </p>
-            <div className="mt-6">
-              {!prefs ? (
-                <Button variant="hero" size="xl" onClick={() => setPrefs({})}>Get Started</Button>
-              ) : null}
-            </div>
+            <div className="mt-6" />
           </div>
           <div className="relative hidden">
             {/* Hero image removed as requested */}
