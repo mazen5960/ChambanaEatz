@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import heroImg from "@/assets/hero-foodspin.jpg";
+
 import QuickPreferences from "@/components/QuickPreferences";
 import RecommendationsList from "@/components/RecommendationsList";
 import WheelOfFood from "@/components/WheelOfFood";
@@ -162,8 +162,8 @@ const Index = () => {
               ) : null}
             </div>
           </div>
-          <div className="relative">
-            <img src={heroImg} alt="FoodSpin hero illustration with white and sky-blue waves and food icons" className="rounded-xl shadow-elevated w-full h-auto" loading="eager" />
+          <div className="relative hidden">
+            {/* Hero image removed as requested */}
           </div>
         </div>
       </header>

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   items: string[];
@@ -11,6 +12,15 @@ const WheelOfFood = ({ items, onPick }: Props) => {
   const [angle, setAngle] = useState(0);
   const wheelRef = useRef<HTMLDivElement | null>(null);
 
+  // User-added choices for the spinner
+  const [customItems, setCustomItems] = useState<string[]>([]);
+  const [newItem, setNewItem] = useState("");
+
+  const allItems = useMemo(() => {
+    const merged = [...items, ...customItems].map((s) => s.trim()).filter(Boolean);
+    return merged;
+  }, [items, customItems]);
+
   const colors = [
     "hsl(var(--accent))",
     "hsl(var(--secondary))",
@@ -19,7 +29,7 @@ const WheelOfFood = ({ items, onPick }: Props) => {
   ];
 
   const gradient = useMemo(() => {
-    const n = Math.max(items.length, 1);
+    const n = Math.max(allItems.length, 1);
     const step = 360 / n;
     let parts: string[] = [];
     for (let i = 0; i < n; i++) {
@@ -27,10 +37,10 @@ const WheelOfFood = ({ items, onPick }: Props) => {
       parts.push(`${c} ${i * step}deg ${(i + 1) * step}deg`);
     }
     return `conic-gradient(${parts.join(", ")})`;
-  }, [items]);
+  }, [allItems]);
 
   const spin = () => {
-    if (!items.length) return;
+    if (!allItems.length) return;
     setSpinning(true);
     // spin 3–5 turns + random end
     const end = angle + 360 * (3 + Math.floor(Math.random() * 3)) + Math.floor(Math.random() * 360);
@@ -38,8 +48,8 @@ const WheelOfFood = ({ items, onPick }: Props) => {
     setTimeout(() => {
       setSpinning(false);
       const normalized = ((end % 360) + 360) % 360;
-      const idx = Math.floor(((360 - normalized) % 360) / (360 / items.length));
-      const pick = items[idx];
+      const idx = Math.floor(((360 - normalized) % 360) / (360 / allItems.length));
+      const pick = allItems[idx];
       onPick(pick);
     }, 2500);
   };
@@ -69,6 +79,26 @@ const WheelOfFood = ({ items, onPick }: Props) => {
             </div>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">Spin to break the tie!</p>
+          <div className="mt-4 flex w-full max-w-sm items-center gap-2">
+            <Input
+              placeholder="Add a choice (e.g., Tacos)"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              aria-label="Add spinner choice"
+            />
+            <Button
+              variant="outline"
+              onClick={() => {
+                const v = newItem.trim();
+                if (!v) return;
+                setCustomItems((prev) => [...prev, v]);
+                setNewItem("");
+              }}
+              disabled={spinning}
+            >
+              Add
+            </Button>
+          </div>
         </div>
       </div>
     </section>

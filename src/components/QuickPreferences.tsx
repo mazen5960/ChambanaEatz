@@ -56,15 +56,20 @@ const QuickPreferences = ({ onComplete }: Props) => {
         <h2 className="text-xl font-semibold mb-4">Quick Preferences</h2>
         <p className="text-sm text-muted-foreground mb-6">Answer 2–3 quick questions to jumpstart recommendations.</p>
         <div className="flex flex-wrap gap-2">
-          {current.options.map((opt: any) => (
-            <Button
-              key={opt.key}
-              variant={step === 0 ? "hero" : "secondary"}
-              onClick={() => current.onPick(opt.key)}
-            >
-              {opt.label}
-            </Button>
-          ))}
+          {current.options.map((opt: any) => {
+            const isSelected =
+              (step === 0 ? prefs.cuisinePref : step === 1 ? prefs.mode : prefs.dress) === opt.key;
+            return (
+              <Button
+                key={opt.key}
+                variant={isSelected ? "secondary" : "outline"}
+                onClick={() => current.onPick(opt.key)}
+                aria-pressed={isSelected}
+              >
+                {opt.label}
+              </Button>
+            );
+          })}
         </div>
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">Step {step + 1} of {steps.length}</div>
