@@ -18,7 +18,18 @@ export interface Restaurant {
 }
 
 export interface Preferences {
-  cuisinePref?: "asian" | "mexican" | "italian" | "american" | "surprise";
+  cuisinePref?:
+    | "asian"
+    | "mexican"
+    | "italian"
+    | "greek"
+    | "middle-eastern"
+    | "chinese"
+    | "japanese"
+    | "latin"
+    | "indian"
+    | "american"
+    | "surprise";
   mode?: "dine-in" | "delivery";
   dress?: "casual" | "nice";
 }

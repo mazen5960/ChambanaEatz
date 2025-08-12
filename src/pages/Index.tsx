@@ -56,6 +56,12 @@ const Index = () => {
           asian: ["Japanese", "Chinese", "Vietnamese", "Thai", "Korean"],
           mexican: ["Mexican"],
           italian: ["Italian"],
+          greek: ["Greek"],
+          "middle-eastern": ["Middle Eastern", "Turkish"],
+          chinese: ["Chinese"],
+          japanese: ["Japanese"],
+          latin: ["Mexican", "Latin"],
+          indian: ["Indian"],
           american: ["American"],
           surprise: [],
         };
@@ -130,6 +136,9 @@ const Index = () => {
     setUserLoc(null);
   };
 
+  const scrollToSpinner = () => {
+    document.getElementById("spinner")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
     <div className="min-h-screen">
       <header className="relative overflow-hidden">
@@ -260,12 +269,20 @@ const Index = () => {
               </div>
             </section>
 
+            {/* Can't decide callout */}
+            <section className="rounded-xl border p-4 flex items-center justify-between gap-3">
+              <p className="text-sm">Can’t decide? Choose your favorites and spin the Food Spinner.</p>
+              <Button variant="hero" size="sm" onClick={scrollToSpinner}>Open Spinner</Button>
+            </section>
+
             <RecommendationsList items={shortlist} favorites={favorites} onToggleFavorite={onToggleFavorite} />
 
-            <WheelOfFood
-              items={wheelItems}
-              onPick={(name) => toast({ title: "Your pick:", description: name })}
-            />
+            <div id="spinner">
+              <WheelOfFood
+                items={wheelItems}
+                onPick={(name) => toast({ title: "Your pick:", description: name })}
+              />
+            </div>
 
             {/* Group Mode placeholder */}
             <section className="rounded-xl border p-5">
@@ -276,6 +293,17 @@ const Index = () => {
           </section>
         )}
       </main>
+
+      {prefs && shortlist.length > 1 && (
+        <div className="fixed bottom-4 left-0 right-0 z-40">
+          <div className="container">
+            <div className="rounded-full border bg-card/90 backdrop-blur px-4 py-3 shadow-elevated flex items-center justify-between gap-3">
+              <span className="text-sm">Can’t decide? Pick a few favorites and spin the Food Spinner.</span>
+              <Button variant="hero" size="sm" onClick={scrollToSpinner}>Open Spinner</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="container py-10 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} FoodSpin. All rights reserved.
