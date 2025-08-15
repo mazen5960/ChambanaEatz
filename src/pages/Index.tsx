@@ -23,9 +23,9 @@ const defaultFilters: Filters = {
 };
 
 const presetCities = [
+  { id: "chicago", label: "Chicago", lat: 41.8781, lon: -87.6298 },
+  { id: "champaign", label: "Champaign", lat: 40.1164, lon: -88.2434 },
   { id: "sf", label: "San Francisco", lat: 37.7749, lon: -122.4194 },
-  { id: "nyc", label: "New York", lat: 40.7128, lon: -74.006 },
-  { id: "la", label: "Los Angeles", lat: 34.0522, lon: -118.2437 },
 ];
 
 const Index = () => {
@@ -38,12 +38,12 @@ const Index = () => {
   const [userLoc, setUserLoc] = useState<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
-    const favs = localStorage.getItem("foodspin:favorites");
+    const favs = localStorage.getItem("illinieatz:favorites");
     if (favs) setFavorites(new Set(JSON.parse(favs)));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("foodspin:favorites", JSON.stringify(Array.from(favorites)));
+    localStorage.setItem("illinieatz:favorites", JSON.stringify(Array.from(favorites)));
   }, [favorites]);
 
   const shortlist = useMemo(() => {
@@ -144,7 +144,7 @@ const Index = () => {
       <header className="relative overflow-hidden">
         <div className="container py-10">
           <nav className="flex items-center justify-between">
-            <a href="#" className="text-xl font-bold text-gradient-primary">FoodSpin</a>
+            <a href="#" className="text-xl font-bold text-gradient-primary">IlliniEatz</a>
             <Button variant="outline" size="sm" onClick={resetAll}><RotateCcw className="mr-2" /> Reset</Button>
           </nav>
         </div>
@@ -302,7 +302,7 @@ const Index = () => {
       )}
 
       <footer className="container py-10 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} FoodSpin. All rights reserved.
+        © {new Date().getFullYear()} IlliniEatz. All rights reserved.
       </footer>
     </div>
   );
