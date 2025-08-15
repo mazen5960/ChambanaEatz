@@ -14,7 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      restaurants_cache: {
+        Row: {
+          address: string | null
+          cached_at: string
+          city: string
+          country: string
+          cuisine: string | null
+          id: string
+          is_open_now: boolean | null
+          lat: number
+          lon: number
+          name: string
+          opening_hours: Json | null
+          photos: string[] | null
+          place_id: string
+          price_level: number | null
+          rating: number | null
+          updated_at: string
+          user_ratings_total: number | null
+        }
+        Insert: {
+          address?: string | null
+          cached_at?: string
+          city: string
+          country: string
+          cuisine?: string | null
+          id?: string
+          is_open_now?: boolean | null
+          lat: number
+          lon: number
+          name: string
+          opening_hours?: Json | null
+          photos?: string[] | null
+          place_id: string
+          price_level?: number | null
+          rating?: number | null
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Update: {
+          address?: string | null
+          cached_at?: string
+          city?: string
+          country?: string
+          cuisine?: string | null
+          id?: string
+          is_open_now?: boolean | null
+          lat?: number
+          lon?: number
+          name?: string
+          opening_hours?: Json | null
+          photos?: string[] | null
+          place_id?: string
+          price_level?: number | null
+          rating?: number | null
+          updated_at?: string
+          user_ratings_total?: number | null
+        }
+        Relationships: []
+      }
+      search_history: {
+        Row: {
+          city: string
+          id: string
+          results_count: number | null
+          search_query: string | null
+          searched_at: string
+        }
+        Insert: {
+          city: string
+          id?: string
+          results_count?: number | null
+          search_query?: string | null
+          searched_at?: string
+        }
+        Update: {
+          city?: string
+          id?: string
+          results_count?: number | null
+          search_query?: string | null
+          searched_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
