@@ -121,10 +121,25 @@ const Index = () => {
       toast({ title: "Location not available", description: "Your browser doesn't support geolocation." });
       return;
     }
+    
+    toast({ title: "Requesting location...", description: "Please allow location access in your browser." });
+    
     navigator.geolocation.getCurrentPosition(
-      (pos) => setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => toast({ title: "Permission denied", description: "You can also pick a city manually." })
+      (pos) => {
+        setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        toast({ title: "Location found!", description: `Lat: ${pos.coords.latitude.toFixed(4)}, Lon: ${pos.coords.longitude.toFixed(4)}` });
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast({ title: "Location access denied", description: "Please allow location access or enter your city manually." });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
+  };
+
+  const handleSearch = () => {
+    toast({ title: "Searching...", description: "Finding restaurants based on your preferences." });
+    // The shortlist will automatically update due to the dependency array
   };
 
   const resetAll = () => {
@@ -177,7 +192,10 @@ const Index = () => {
                       <Button variant="outline" size="sm" onClick={() => setUserLoc(null)}>Clear location</Button>
                     )}
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">Location helps us show distance but isn't required for recommendations.</p>
+                  {userLoc && (
+                    <p className="mt-1 text-xs text-green-600">Location set: {userLoc.lat.toFixed(4)}, {userLoc.lon.toFixed(4)}</p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">Click "Use my location" to let us access your current location.</p>
                 </div>
 
                 <div>
@@ -240,6 +258,11 @@ const Index = () => {
                     <Label htmlFor="live">Live signals (busy now, wait times)</Label>
                   </div>
                 </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <Button onClick={handleSearch} className="px-8">
+                  🔍 Search Restaurants
+                </Button>
               </div>
             </Card>
 
