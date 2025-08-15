@@ -25,16 +25,23 @@ const CitySearch = ({ onCitySearch, currentCity }: CitySearchProps) => {
     }
 
     setLoading(true);
+    console.log('Starting search for city:', city.trim());
+    
     try {
+      console.log('Calling supabase function...');
       const { data, error } = await supabase.functions.invoke('search-restaurants', {
         body: { city: city.trim() }
       });
 
+      console.log('Function response:', { data, error });
+
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
       if (data.error) {
+        console.error('Function returned error:', data.error);
         throw new Error(data.error);
       }
 
