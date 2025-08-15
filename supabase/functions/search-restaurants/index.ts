@@ -124,9 +124,15 @@ serve(async (req) => {
       `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchLat},${searchLng}&radius=${radius}&type=restaurant&key=${googleApiKey}`
     );
 
+    if (!placesResponse.ok) {
+      throw new Error(`Google Places API HTTP error: ${placesResponse.status}`);
+    }
+
     const placesData = await placesResponse.json();
+    console.log(`Google Places API response status: ${placesData.status}`);
     
     if (placesData.status !== 'OK') {
+      console.error('Google Places API error:', placesData);
       throw new Error(`Google Places API error: ${placesData.status} - ${placesData.error_message || 'Unknown error'}`);
     }
 
