@@ -15,18 +15,13 @@ import { Diet, Filters, Preferences, Restaurant, haversineMiles } from "@/types/
 import { MapPin, SlidersHorizontal, RotateCcw } from "lucide-react";
 
 const defaultFilters: Filters = {
-  maxDistance: 10,
-  maxPrice: 4,
-  minRating: 4,
+  maxDistance: 50,
+  maxPrice: 5,
+  minRating: 3,
   diet: [],
   vibes: [],
 };
 
-const presetCities = [
-  { id: "chicago", label: "Chicago", lat: 41.8781, lon: -87.6298 },
-  { id: "champaign", label: "Champaign", lat: 40.1164, lon: -88.2434 },
-  { id: "sf", label: "San Francisco", lat: 37.7749, lon: -122.4194 },
-];
 
 const Index = () => {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
@@ -82,12 +77,14 @@ const Index = () => {
       let distance: number | undefined = undefined;
       if (userLoc) distance = haversineMiles(userLoc, { lat: r.lat, lon: r.lon });
 
-      // filter out by filters
+      // filter out by filters (less restrictive)
       if (filters.maxPrice < 5 && r.price > filters.maxPrice) score = -1e9; // exclude
-      if (typeof distance === "number" && distance > filters.maxDistance) score = -1e9;
       if (r.rating < filters.minRating) score = -1e9;
-      if (filters.diet.length && !filters.diet.every((d) => r.diet.includes(d))) score = -1e9;
-      if (filters.vibes.length && !filters.vibes.every((v) => r.vibes.includes(v))) score = -1e9;
+      // Only apply distance filter if location is set
+      if (userLoc && typeof distance === "number" && distance > filters.maxDistance) score -= 10; // penalize instead of exclude
+      // Make diet/vibes optional - only apply if specifically selected
+      if (filters.diet.length && !filters.diet.some((d) => r.diet.includes(d))) score -= 5;
+      if (filters.vibes.length && !filters.vibes.some((v) => r.vibes.includes(v))) score -= 5;
 
       // budget mapping (rough): $~15, $$~30, $$$~50, $$$$>50
       if (filters.budgetPerPerson) {
@@ -173,22 +170,14 @@ const Index = () => {
             <Card className="p-5">
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
-                  <h3 className="font-semibold mb-2">Location</h3>
+                  <h3 className="font-semibold mb-2">Location (Optional)</h3>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={requestLocation}><MapPin className="mr-1" /> Use my location</Button>
-                    <Select onValueChange={(id) => {
-                      const city = presetCities.find((c) => c.id === id);
-                      if (city) setUserLoc({ lat: city.lat, lon: city.lon });
-                    }}>
-                      <SelectTrigger className="w-[220px]"><SelectValue placeholder="Pick a city" /></SelectTrigger>
-                      <SelectContent>
-                        {presetCities.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {userLoc && (
+                      <Button variant="outline" size="sm" onClick={() => setUserLoc(null)}>Clear location</Button>
+                    )}
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">We only ask when needed. You can also choose a city manually.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Location helps us show distance but isn't required for recommendations.</p>
                 </div>
 
                 <div>
