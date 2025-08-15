@@ -126,7 +126,7 @@ const Index = () => {
     });
   };
 
-  const requestLocation = () => {
+  const requestLocation = async () => {
     if (!("geolocation" in navigator)) {
       toast({ title: "Location not available", description: "Your browser doesn't support geolocation." });
       return;
@@ -135,13 +135,78 @@ const Index = () => {
     toast({ title: "Requesting location...", description: "Please allow location access in your browser." });
     
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        toast({ title: "Location found!", description: `Lat: ${pos.coords.latitude.toFixed(4)}, Lon: ${pos.coords.longitude.toFixed(4)}` });
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        setUserLoc({ lat, lon });
+        
+        toast({ title: "Location found!", description: "Searching for nearby restaurants..." });
+        
+        try {
+          console.log('Searching restaurants near coordinates:', lat, lon);
+          const { data, error } = await supabase.functions.invoke('search-restaurants', {
+            body: { lat, lng: lon, radius: 5000 }
+          });
+
+          if (error) {
+            console.error('Location search error:', error);
+            throw error;
+          }
+
+          if (data.error) {
+            console.error('Function returned error:', data.error);
+            throw new Error(data.error);
+          }
+
+          const { restaurants } = data;
+          
+          if (restaurants.length === 0) {
+            toast({
+              title: "No restaurants found nearby",
+              description: "Try searching for a specific city instead.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Transform restaurant data
+          const transformedRestaurants = restaurants.map((r: any) => ({
+            id: r.place_id,
+            name: r.name,
+            cuisine: r.cuisine,
+            price: r.price_level || 2,
+            rating: r.rating || 4.0,
+            reviews: r.user_ratings_total || 0,
+            lat: r.lat,
+            lon: r.lon,
+            address: r.address,
+            hours: "Various",
+            isOpenNow: r.is_open_now ?? true,
+            diet: [],
+            vibes: ["casual"]
+          }));
+
+          setSearchedRestaurants(transformedRestaurants);
+          setDataSource('global');
+          setCurrentCity('Your Location');
+          
+          toast({
+            title: `Found ${restaurants.length} nearby restaurants`,
+            description: "Restaurants loaded based on your location",
+          });
+          
+        } catch (error: any) {
+          console.error('Error searching nearby restaurants:', error);
+          toast({
+            title: "Failed to load nearby restaurants",
+            description: error.message || "Please try again or search by city name.",
+            variant: "destructive",
+          });
+        }
       },
       (error) => {
         console.error("Geolocation error:", error);
-        toast({ title: "Location access denied", description: "Please allow location access or enter your city manually." });
+        toast({ title: "Location access denied", description: "Please allow location access or enter your city manually.", variant: "destructive" });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
