@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import QuickPreferences from "@/components/QuickPreferences";
 import RecommendationsList from "@/components/RecommendationsList";
 import WheelOfFood from "@/components/WheelOfFood";
-import CityInput from "@/components/CityInput";
+import CitySearch from "@/components/CitySearch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,6 @@ const Index = () => {
   // New state for worldwide restaurant search
   const [searchedRestaurants, setSearchedRestaurants] = useState<Restaurant[]>([]);
   const [currentCity, setCurrentCity] = useState<string>("");
-  const [isSearching, setIsSearching] = useState(false);
   const [dataSource, setDataSource] = useState<'local' | 'global'>('local');
 
   useEffect(() => {
@@ -154,49 +153,10 @@ const Index = () => {
   };
 
   // Handler for city search
-  const handleCitySearch = async (city: string, _restaurants: any[]) => {
-    setIsSearching(true);
+  const handleCitySearch = (restaurants: any[], city: string) => {
     setCurrentCity(city);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('search-restaurants', {
-        body: { city }
-      });
-
-      if (error) {
-        console.error('Search error:', error);
-        toast({
-          title: "Search failed",
-          description: error.message || "Unable to search for restaurants. Please try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data && data.restaurants) {
-        setSearchedRestaurants(data.restaurants);
-        setDataSource('global');
-        toast({
-          title: `Found ${data.restaurants.length} restaurants in ${city}`,
-          description: `Data source: ${data.source === 'cache' ? 'Cached' : 'Live from Google Places'}`
-        });
-      } else {
-        toast({
-          title: "No restaurants found",
-          description: `No restaurants found in ${city}. Try a different city.`,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('City search error:', error);
-      toast({
-        title: "Search failed",
-        description: "Unable to search for restaurants. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearching(false);
-    }
+    setSearchedRestaurants(restaurants);
+    setDataSource('global');
   };
 
   const resetAll = () => {
@@ -246,7 +206,7 @@ const Index = () => {
               <div className="grid lg:grid-cols-4 gap-6">
                 <div>
                   <h3 className="font-semibold mb-2">Search Any City</h3>
-                  <CityInput onCitySearch={handleCitySearch} isLoading={isSearching} />
+                  <CitySearch onCitySearch={handleCitySearch} currentCity={currentCity} />
                   {currentCity && (
                     <div className="mt-2 text-xs">
                       <span className="text-primary">Showing results for: {currentCity}</span>
