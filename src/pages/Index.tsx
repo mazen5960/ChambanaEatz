@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import QuickPreferences from "@/components/QuickPreferences";
 import RecommendationsList from "@/components/RecommendationsList";
 import WheelOfFood from "@/components/WheelOfFood";
+import CityInput from "@/components/CityInput";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { sampleRestaurants, sampleTrendingTop5 } from "@/data/restaurants";
 import { Diet, Filters, Preferences, Restaurant, haversineMiles } from "@/types/restaurant";
+import { supabase } from "@/integrations/supabase/client";
 import { MapPin, SlidersHorizontal, RotateCcw } from "lucide-react";
 
 const defaultFilters: Filters = {
@@ -28,9 +30,15 @@ const Index = () => {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [useLiveSignals, setUseLiveSignals] = useState(false);
-
+  
   // Privacy-first: location requested only via explicit action
   const [userLoc, setUserLoc] = useState<{ lat: number; lon: number } | null>(null);
+  
+  // New state for worldwide restaurant search
+  const [searchedRestaurants, setSearchedRestaurants] = useState<Restaurant[]>([]);
+  const [currentCity, setCurrentCity] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [dataSource, setDataSource] = useState<'local' | 'global'>('local');
 
   useEffect(() => {
     const favs = localStorage.getItem("illinieatz:favorites");
@@ -42,8 +50,11 @@ const Index = () => {
   }, [favorites]);
 
   const shortlist = useMemo(() => {
+    // Use either searched restaurants or sample restaurants
+    const restaurantsToUse = dataSource === 'global' ? searchedRestaurants : sampleRestaurants;
+    
     // Compute base score by prefs + trending + filters
-    const base = sampleRestaurants.map((r) => {
+    const base = restaurantsToUse.map((r) => {
       let score = 0;
       // prefs boost
       if (prefs?.cuisinePref && prefs.cuisinePref !== "surprise") {
@@ -103,7 +114,7 @@ const Index = () => {
       .filter((r) => r.score > -1e6)
       .sort((a, b) => b.score - a.score)
       .slice(0, 12);
-  }, [prefs, filters, userLoc, useLiveSignals]);
+  }, [prefs, filters, userLoc, useLiveSignals, searchedRestaurants, dataSource]);
 
   const wheelItems = useMemo(() => shortlist.map((r) => r.name), [shortlist]);
 
@@ -142,10 +153,59 @@ const Index = () => {
     // The shortlist will automatically update due to the dependency array
   };
 
+  // Handler for city search
+  const handleCitySearch = async (city: string, _restaurants: any[]) => {
+    setIsSearching(true);
+    setCurrentCity(city);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('search-restaurants', {
+        body: { city }
+      });
+
+      if (error) {
+        console.error('Search error:', error);
+        toast({
+          title: "Search failed",
+          description: error.message || "Unable to search for restaurants. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data && data.restaurants) {
+        setSearchedRestaurants(data.restaurants);
+        setDataSource('global');
+        toast({
+          title: `Found ${data.restaurants.length} restaurants in ${city}`,
+          description: `Data source: ${data.source === 'cache' ? 'Cached' : 'Live from Google Places'}`
+        });
+      } else {
+        toast({
+          title: "No restaurants found",
+          description: `No restaurants found in ${city}. Try a different city.`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('City search error:', error);
+      toast({
+        title: "Search failed",
+        description: "Unable to search for restaurants. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const resetAll = () => {
     setPrefs(null);
     setFilters(defaultFilters);
     setUserLoc(null);
+    setSearchedRestaurants([]);
+    setCurrentCity("");
+    setDataSource('local');
   };
 
   const scrollToSpinner = () => {
@@ -181,8 +241,27 @@ const Index = () => {
           <QuickPreferences onComplete={(p) => setPrefs(p)} />
         ) : (
           <section className="grid gap-8">
-            {/* Location & filters */}
+            {/* City Search & Location */}
             <Card className="p-5">
+              <div className="grid lg:grid-cols-4 gap-6">
+                <div>
+                  <h3 className="font-semibold mb-2">Search Any City</h3>
+                  <CityInput onCitySearch={handleCitySearch} isLoading={isSearching} />
+                  {currentCity && (
+                    <div className="mt-2 text-xs">
+                      <span className="text-primary">Showing results for: {currentCity}</span>
+                      <Button variant="link" size="sm" className="h-auto p-0 ml-2" onClick={() => {
+                        setDataSource('local');
+                        setCurrentCity("");
+                        setSearchedRestaurants([]);
+                      }}>
+                        Back to local data
+                      </Button>
+                    </div>
+                  )}
+                </div>
+            
+            {/* Location & filters */}
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
                   <h3 className="font-semibold mb-2">Location (Optional)</h3>
@@ -258,6 +337,7 @@ const Index = () => {
                     <Label htmlFor="live">Live signals (busy now, wait times)</Label>
                   </div>
                 </div>
+                </div>
               </div>
               <div className="mt-4 flex justify-center">
                 <Button onClick={handleSearch} className="px-8">
@@ -268,8 +348,10 @@ const Index = () => {
 
             {/* Trending */}
             <section aria-label="Trending Cuisines Today" className="rounded-xl border p-5">
-              <h3 className="font-semibold">Trending in your city</h3>
-              <p className="text-sm text-muted-foreground">Top 5 cuisines people love today</p>
+              <h3 className="font-semibold">Trending {currentCity ? `in ${currentCity}` : 'in your city'}</h3>
+              <p className="text-sm text-muted-foreground">
+                {dataSource === 'global' ? `Real-time data from ${currentCity}` : 'Top 5 cuisines people love today'}
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {sampleTrendingTop5.map((c, i) => (
                   <span key={c} className="rounded-full bg-secondary px-3 py-1 text-sm">#{i + 1} {c}</span>
