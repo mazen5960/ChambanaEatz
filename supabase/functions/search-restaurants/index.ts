@@ -79,15 +79,40 @@ serve(async (req) => {
       const geocodeResponse = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city)}&key=${googleApiKey}`
       );
+      
+      if (!geocodeResponse.ok) {
+        throw new Error(`Geocoding API error: ${geocodeResponse.status}`);
+      }
+      
       const geocodeData = await geocodeResponse.json();
+      console.log(`Geocoding response for ${city}:`, JSON.stringify(geocodeData, null, 2));
+      
+      if (geocodeData.status === 'ZERO_RESULTS') {
+        throw new Error(`No results found for city: ${city}. Please try a different city name or check spelling.`);
+      }
+      
+      if (geocodeData.status !== 'OK') {
+        throw new Error(`Geocoding API error: ${geocodeData.status} - ${geocodeData.error_message || 'Unknown error'}`);
+      }
       
       if (geocodeData.results && geocodeData.results.length > 0) {
         const location = geocodeData.results[0].geometry.location;
         searchLat = location.lat;
         searchLng = location.lng;
-        searchCity = geocodeData.results[0].address_components.find((comp: any) => 
-          comp.types.includes('locality') || comp.types.includes('administrative_area_level_1')
+        
+        // Extract city name more reliably
+        const addressComponents = geocodeData.results[0].address_components;
+        searchCity = addressComponents.find((comp: any) => 
+          comp.types.includes('locality')
+        )?.long_name || 
+        addressComponents.find((comp: any) => 
+          comp.types.includes('administrative_area_level_1')
+        )?.long_name || 
+        addressComponents.find((comp: any) => 
+          comp.types.includes('administrative_area_level_2')
         )?.long_name || city;
+        
+        console.log(`Found coordinates for ${city}: ${searchLat}, ${searchLng} (normalized to: ${searchCity})`);
       } else {
         throw new Error(`Could not find coordinates for city: ${city}`);
       }
