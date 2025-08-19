@@ -238,24 +238,23 @@ const Index = () => {
         }
       },
       (error) => {
-        console.error("Geolocation error details:", error);
+        console.error("Geolocation error:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
         
         let errorTitle = "Location access denied";
         let errorDescription = "Please allow location access or enter your city manually.";
         
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorTitle = "Location permission denied";
-            errorDescription = "Please enable location access in your browser settings or search by city name.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorTitle = "Location unavailable";
-            errorDescription = "Unable to determine your location. Please search by city name instead.";
-            break;
-          case error.TIMEOUT:
-            errorTitle = "Location request timeout";
-            errorDescription = "Location request timed out. Please try again or search by city name.";
-            break;
+        // Handle different geolocation error types
+        if (error.code === 1) { // PERMISSION_DENIED
+          errorTitle = "Location permission denied";
+          errorDescription = "Please enable location access in your browser settings or search by city name.";
+        } else if (error.code === 2) { // POSITION_UNAVAILABLE
+          errorTitle = "Location unavailable";
+          errorDescription = "Unable to determine your location. Please search by city name instead.";
+        } else if (error.code === 3) { // TIMEOUT
+          errorTitle = "Location request timeout";
+          errorDescription = "Location request timed out. Please try again or search by city name.";
         }
         
         toast({ 
@@ -265,9 +264,9 @@ const Index = () => {
         });
       },
       { 
-        enableHighAccuracy: true, 
-        timeout: 15000, // Increased timeout
-        maximumAge: 60000 
+        enableHighAccuracy: false, // Changed to false for better compatibility
+        timeout: 10000, // Reduced timeout for faster feedback
+        maximumAge: 300000 // 5 minutes cache
       }
     );
   };
