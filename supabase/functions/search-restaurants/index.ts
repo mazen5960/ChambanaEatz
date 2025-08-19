@@ -165,29 +165,41 @@ serve(async (req) => {
         is_open_now: place.opening_hours?.open_now || true,
         photos: place.photos?.map(p => p.photo_reference) || [],
         city: searchCity,
-        country: 'Unknown'
+        country: 'Unknown',
+        cached_at: new Date().toISOString()
       };
     });
 
-    // Cache results in Supabase
+    // Try to cache results in Supabase, but don't fail if caching fails
     if (restaurants.length > 0) {
-      console.log(`Caching ${restaurants.length} restaurants for ${searchCity}`);
-      const { error: cacheError } = await supabase
-        .from('restaurants_cache')
-        .upsert(restaurants, { onConflict: 'place_id' });
+      console.log(`Attempting to cache ${restaurants.length} restaurants for ${searchCity}`);
+      
+      try {
+        const { error: cacheError } = await supabase
+          .from('restaurants_cache')
+          .upsert(restaurants, { onConflict: 'place_id' });
 
-      if (cacheError) {
-        console.error('Cache error:', cacheError);
+        if (cacheError) {
+          console.error('Cache error (non-fatal):', cacheError);
+        } else {
+          console.log('Successfully cached restaurants');
+        }
+
+        // Log search for analytics (also non-fatal)
+        const { error: analyticsError } = await supabase
+          .from('search_history')
+          .insert({
+            city: searchCity,
+            search_query: `${searchLat},${searchLng}`,
+            results_count: restaurants.length
+          });
+
+        if (analyticsError) {
+          console.error('Analytics logging error (non-fatal):', analyticsError);
+        }
+      } catch (error) {
+        console.error('Database operation failed (non-fatal):', error);
       }
-
-      // Log search for analytics
-      await supabase
-        .from('search_history')
-        .insert({
-          city: searchCity,
-          search_query: `${searchLat},${searchLng}`,
-          results_count: restaurants.length
-        });
     }
 
     return new Response(JSON.stringify({ restaurants, source: 'api' }), {
