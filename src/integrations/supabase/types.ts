@@ -21,6 +21,8 @@ export type Database = {
           city: string
           country: string
           cuisine: string | null
+          detected_diet: Json | null
+          detected_vibes: Json | null
           id: string
           is_open_now: boolean | null
           lat: number
@@ -28,9 +30,13 @@ export type Database = {
           name: string
           opening_hours: Json | null
           photos: string[] | null
+          place_attributes: Json | null
           place_id: string
           price_level: number | null
           rating: number | null
+          review_analysis_date: string | null
+          review_summary: Json | null
+          review_texts: Json | null
           updated_at: string
           user_ratings_total: number | null
         }
@@ -40,6 +46,8 @@ export type Database = {
           city: string
           country: string
           cuisine?: string | null
+          detected_diet?: Json | null
+          detected_vibes?: Json | null
           id?: string
           is_open_now?: boolean | null
           lat: number
@@ -47,9 +55,13 @@ export type Database = {
           name: string
           opening_hours?: Json | null
           photos?: string[] | null
+          place_attributes?: Json | null
           place_id: string
           price_level?: number | null
           rating?: number | null
+          review_analysis_date?: string | null
+          review_summary?: Json | null
+          review_texts?: Json | null
           updated_at?: string
           user_ratings_total?: number | null
         }
@@ -59,6 +71,8 @@ export type Database = {
           city?: string
           country?: string
           cuisine?: string | null
+          detected_diet?: Json | null
+          detected_vibes?: Json | null
           id?: string
           is_open_now?: boolean | null
           lat?: number
@@ -66,9 +80,13 @@ export type Database = {
           name?: string
           opening_hours?: Json | null
           photos?: string[] | null
+          place_attributes?: Json | null
           place_id?: string
           price_level?: number | null
           rating?: number | null
+          review_analysis_date?: string | null
+          review_summary?: Json | null
+          review_texts?: Json | null
           updated_at?: string
           user_ratings_total?: number | null
         }

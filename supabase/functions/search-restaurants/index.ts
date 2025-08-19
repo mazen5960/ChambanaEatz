@@ -29,6 +29,75 @@ interface PlaceResult {
   };
 }
 
+interface PlaceDetailsResult {
+  place_id: string;
+  name: string;
+  formatted_address: string;
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  rating?: number;
+  user_ratings_total?: number;
+  price_level?: number;
+  opening_hours?: {
+    open_now?: boolean;
+    weekday_text?: string[];
+  };
+  reviews?: Array<{
+    text: string;
+    rating: number;
+    time: number;
+  }>;
+  types?: string[];
+  photos?: Array<{
+    photo_reference: string;
+  }>;
+}
+
+// Diet and vibe detection keywords
+const DIET_KEYWORDS = {
+  vegetarian: ['vegetarian', 'veggie', 'plant-based', 'vegetarian-friendly', 'vegetarian options', 'veggie options'],
+  vegan: ['vegan', 'plant-based', 'dairy-free', 'vegan options', 'vegan menu', 'vegan friendly'],
+  halal: ['halal', 'halal certified', 'muslim-friendly', 'no pork', 'halal meat', 'halal food'],
+  'gluten-free': ['gluten-free', 'gluten free', 'celiac', 'gf options', 'gluten-free menu', 'no gluten']
+};
+
+const VIBE_KEYWORDS = {
+  quiet: ['quiet', 'peaceful', 'intimate', 'cozy', 'calm', 'serene', 'tranquil'],
+  'group-friendly': ['large groups', 'family-friendly', 'spacious', 'accommodating groups', 'big parties', 'group dining'],
+  'date-night': ['romantic', 'intimate', 'perfect for date', 'cozy atmosphere', 'candlelit', 'date spot'],
+  lively: ['energetic', 'vibrant', 'bustling', 'lively atmosphere', 'busy', 'upbeat', 'lively'],
+  casual: ['casual', 'relaxed', 'laid-back', 'informal', 'comfortable', 'no dress code']
+};
+
+function detectAttributesFromReviews(reviews: Array<{text: string, rating: number}>) {
+  const detectedDiet: string[] = [];
+  const detectedVibes: string[] = [];
+  
+  const allReviewText = reviews.map(r => r.text.toLowerCase()).join(' ');
+  
+  // Detect dietary options
+  for (const [diet, keywords] of Object.entries(DIET_KEYWORDS)) {
+    const matches = keywords.filter(keyword => allReviewText.includes(keyword)).length;
+    if (matches >= 1) { // At least 1 mention
+      detectedDiet.push(diet);
+    }
+  }
+  
+  // Detect vibes
+  for (const [vibe, keywords] of Object.entries(VIBE_KEYWORDS)) {
+    const matches = keywords.filter(keyword => allReviewText.includes(keyword)).length;
+    if (matches >= 1) { // At least 1 mention
+      detectedVibes.push(vibe);
+    }
+  }
+  
+  return { detectedDiet, detectedVibes };
+}
+
 serve(async (req) => {
   console.log('=== Search Restaurants Function Started ===');
   
@@ -78,22 +147,51 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check cache first if we have city name
-    let cachedResults = [];
-    if (city) {
-      console.log(`Checking cache for city: ${city}`);
-      const { data: cached } = await supabase
-        .from('restaurants_cache')
-        .select('*')
-        .ilike('city', city)
-        .gte('cached_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // 24 hours cache
+    // Check cache first (24 hour cache)
+    console.log(`Checking cache for ${city || 'coordinates'}`);
+    const cacheKey = city || `${lat},${lng}`;
+    const { data: cachedResults } = await supabase
+      .from('restaurants_cache')
+      .select('*')
+      .eq('city', cacheKey)
+      .gte('cached_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .order('rating', { ascending: false })
+      .limit(20);
 
-      if (cached && cached.length > 0) {
-        console.log(`Found ${cached.length} cached results for ${city}`);
-        return new Response(JSON.stringify({ restaurants: cached, source: 'cache' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (cachedResults && cachedResults.length > 0) {
+      console.log(`Found ${cachedResults.length} cached restaurants`);
+      
+      // Log search history
+      try {
+        await supabase.from('search_history').insert({
+          city: cacheKey,
+          search_query: 'cached_results',
+          results_count: cachedResults.length
         });
+      } catch (error) {
+        console.log('Analytics logging error (non-fatal):', error);
       }
+      
+      // Transform cached results to match expected format
+      const transformedResults = cachedResults.map(restaurant => ({
+        id: restaurant.place_id,
+        name: restaurant.name,
+        cuisine: restaurant.cuisine || 'Restaurant',
+        price: restaurant.price_level || 2,
+        rating: Number(restaurant.rating) || 0,
+        reviews: restaurant.user_ratings_total || 0,
+        lat: Number(restaurant.lat),
+        lon: Number(restaurant.lon),
+        address: restaurant.address || '',
+        hours: 'Call for hours',
+        isOpenNow: restaurant.is_open_now || false,
+        diet: restaurant.detected_diet || [],
+        vibes: restaurant.detected_vibes || []
+      }));
+      
+      return new Response(JSON.stringify({ restaurants: transformedResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get coordinates if we only have city name
@@ -112,7 +210,6 @@ serve(async (req) => {
       }
       
       const geocodeData = await geocodeResponse.json();
-      console.log(`Geocoding response for ${city}:`, JSON.stringify(geocodeData, null, 2));
       
       if (geocodeData.status === 'ZERO_RESULTS') {
         throw new Error(`No results found for city: ${city}. Please try a different city name or check spelling.`);
@@ -127,19 +224,12 @@ serve(async (req) => {
         searchLat = location.lat;
         searchLng = location.lng;
         
-        // Extract city name more reliably
         const addressComponents = geocodeData.results[0].address_components;
         searchCity = addressComponents.find((comp: any) => 
           comp.types.includes('locality')
-        )?.long_name || 
-        addressComponents.find((comp: any) => 
-          comp.types.includes('administrative_area_level_1')
-        )?.long_name || 
-        addressComponents.find((comp: any) => 
-          comp.types.includes('administrative_area_level_2')
         )?.long_name || city;
         
-        console.log(`Found coordinates for ${city}: ${searchLat}, ${searchLng} (normalized to: ${searchCity})`);
+        console.log(`Found coordinates for ${city}: ${searchLat}, ${searchLng}`);
       } else {
         throw new Error(`Could not find coordinates for city: ${city}`);
       }
@@ -155,81 +245,166 @@ serve(async (req) => {
       throw new Error(`Google Places API HTTP error: ${placesResponse.status}`);
     }
 
-    const placesData = await placesResponse.json();
-    console.log(`Google Places API response status: ${placesData.status}`);
+    const data = await placesResponse.json();
+    console.log(`Google Places API response status: ${data.status}`);
     
-    if (placesData.status !== 'OK') {
-      console.error('Google Places API error:', placesData);
-      throw new Error(`Google Places API error: ${placesData.status} - ${placesData.error_message || 'Unknown error'}`);
+    if (data.status !== 'OK') {
+      console.error('Google Places API error:', data);
+      throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`);
     }
 
-    // Transform and cache results
-    const restaurants = placesData.results.map((place: PlaceResult) => {
-      // Simple cuisine detection based on place types and name
-      let cuisine = 'American';
-      const placeTypes = place.types.join(' ').toLowerCase();
-      const placeName = place.name.toLowerCase();
-
-      if (placeTypes.includes('chinese') || placeName.includes('chinese')) cuisine = 'Chinese';
-      else if (placeTypes.includes('italian') || placeName.includes('italian') || placeName.includes('pizza')) cuisine = 'Italian';
-      else if (placeTypes.includes('mexican') || placeName.includes('mexican') || placeName.includes('taco')) cuisine = 'Mexican';
-      else if (placeName.includes('sushi') || placeName.includes('japanese')) cuisine = 'Japanese';
-      else if (placeName.includes('indian') || placeName.includes('curry')) cuisine = 'Indian';
-      else if (placeName.includes('thai')) cuisine = 'Asian';
-      else if (placeName.includes('mediterranean') || placeName.includes('greek')) cuisine = 'Greek';
-
-      return {
-        place_id: place.place_id,
-        name: place.name,
-        cuisine,
-        price_level: place.price_level || 2,
-        rating: place.rating || 4.0,
-        user_ratings_total: place.user_ratings_total || 0,
-        lat: place.geometry.location.lat,
-        lon: place.geometry.location.lng,
-        address: place.vicinity || '',
-        opening_hours: place.opening_hours || {},
-        is_open_now: place.opening_hours?.open_now || true,
-        photos: place.photos?.map(p => p.photo_reference) || [],
-        city: searchCity,
-        country: 'Unknown',
-        cached_at: new Date().toISOString()
-      };
-    });
-
-    // Try to cache results in Supabase, but don't fail if caching fails
-    if (restaurants.length > 0) {
-      console.log(`Attempting to cache ${restaurants.length} restaurants for ${searchCity}`);
-      
+    // Fetch detailed information for each restaurant including reviews
+    const detailedResults = [];
+    
+    for (const place of data.results.slice(0, 20)) {
       try {
-        const { error: cacheError } = await supabase
-          .from('restaurants_cache')
-          .upsert(restaurants, { onConflict: 'place_id' });
-
-        if (cacheError) {
-          console.error('Cache error (non-fatal):', cacheError);
-        } else {
-          console.log('Successfully cached restaurants');
-        }
-
-        // Log search for analytics (also non-fatal)
-        const { error: analyticsError } = await supabase
-          .from('search_history')
-          .insert({
-            city: searchCity,
-            search_query: `${searchLat},${searchLng}`,
-            results_count: restaurants.length
+        // Fetch place details with reviews
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_address,geometry,rating,user_ratings_total,price_level,opening_hours,reviews,types,photos&key=${googleApiKey}`;
+        
+        const detailsResponse = await fetch(detailsUrl);
+        const detailsData = await detailsResponse.json();
+        
+        if (detailsData.status === 'OK' && detailsData.result) {
+          const placeDetails: PlaceDetailsResult = detailsData.result;
+          
+          // Analyze reviews for dietary and vibe information
+          let detectedDiet: string[] = [];
+          let detectedVibes: string[] = [];
+          let reviewTexts: string[] = [];
+          
+          if (placeDetails.reviews && placeDetails.reviews.length > 0) {
+            reviewTexts = placeDetails.reviews.map(review => review.text);
+            const analysis = detectAttributesFromReviews(placeDetails.reviews);
+            detectedDiet = analysis.detectedDiet;
+            detectedVibes = analysis.detectedVibes;
+          }
+          
+          // Simple cuisine detection from place types
+          let cuisine = 'Restaurant';
+          if (placeDetails.types) {
+            if (placeDetails.types.includes('pizza')) cuisine = 'Pizza';
+            else if (placeDetails.types.includes('chinese_restaurant')) cuisine = 'Chinese';
+            else if (placeDetails.types.includes('italian_restaurant')) cuisine = 'Italian';
+            else if (placeDetails.types.includes('mexican_restaurant')) cuisine = 'Mexican';
+            else if (placeDetails.types.includes('japanese_restaurant')) cuisine = 'Japanese';
+            else if (placeDetails.types.includes('indian_restaurant')) cuisine = 'Indian';
+            else if (placeDetails.types.includes('thai_restaurant')) cuisine = 'Thai';
+            else if (placeDetails.types.includes('american_restaurant')) cuisine = 'American';
+            else if (placeDetails.types.includes('french_restaurant')) cuisine = 'French';
+            else if (placeDetails.types.includes('cafe')) cuisine = 'Cafe';
+            else if (placeDetails.types.includes('bakery')) cuisine = 'Bakery';
+            else if (placeDetails.types.includes('fast_food')) cuisine = 'Fast Food';
+          }
+          
+          detailedResults.push({
+            place_id: placeDetails.place_id,
+            name: placeDetails.name,
+            lat: placeDetails.geometry.location.lat,
+            lon: placeDetails.geometry.location.lng,
+            address: placeDetails.formatted_address || '',
+            rating: placeDetails.rating || 0,
+            user_ratings_total: placeDetails.user_ratings_total || 0,
+            price_level: placeDetails.price_level || null,
+            cuisine: cuisine,
+            is_open_now: placeDetails.opening_hours?.open_now || false,
+            photos: placeDetails.photos?.map(photo => photo.photo_reference) || [],
+            opening_hours: placeDetails.opening_hours?.weekday_text || null,
+            city: cacheKey,
+            country: 'Unknown',
+            review_texts: reviewTexts,
+            detected_diet: detectedDiet,
+            detected_vibes: detectedVibes,
+            review_analysis_date: new Date().toISOString(),
+            place_attributes: {
+              types: placeDetails.types || [],
+              has_reviews: !!placeDetails.reviews?.length
+            },
+            cached_at: new Date().toISOString()
           });
-
-        if (analyticsError) {
-          console.error('Analytics logging error (non-fatal):', analyticsError);
         }
       } catch (error) {
-        console.error('Database operation failed (non-fatal):', error);
+        console.log(`Error fetching details for ${place.place_id}:`, error);
+        // Fallback to basic info from nearby search
+        let cuisine = 'Restaurant';
+        if (place.types) {
+          if (place.types.includes('pizza')) cuisine = 'Pizza';
+          else if (place.types.includes('chinese_restaurant')) cuisine = 'Chinese';
+          else if (place.types.includes('italian_restaurant')) cuisine = 'Italian';
+        }
+        
+        detailedResults.push({
+          place_id: place.place_id,
+          name: place.name,
+          lat: place.geometry.location.lat,
+          lon: place.geometry.location.lng,
+          address: place.vicinity || '',
+          rating: place.rating || 0,
+          user_ratings_total: place.user_ratings_total || 0,
+          price_level: place.price_level || null,
+          cuisine: cuisine,
+          is_open_now: place.opening_hours?.open_now || false,
+          photos: place.photos?.map(photo => photo.photo_reference) || [],
+          opening_hours: null,
+          city: cacheKey,
+          country: 'Unknown',
+          review_texts: [],
+          detected_diet: [],
+          detected_vibes: [],
+          review_analysis_date: new Date().toISOString(),
+          place_attributes: { types: place.types || [], has_reviews: false },
+          cached_at: new Date().toISOString()
+        });
       }
     }
 
-    return new Response(JSON.stringify({ restaurants, source: 'api' }), {
+    // Cache the results
+    console.log(`Attempting to cache ${detailedResults.length} restaurants for ${cacheKey}`);
+    try {
+      const { error: cacheError } = await supabase
+        .from('restaurants_cache')
+        .upsert(detailedResults, { 
+          onConflict: 'place_id',
+          ignoreDuplicates: false 
+        });
+      
+      if (cacheError) {
+        console.log('Cache error (non-fatal):', cacheError);
+      } else {
+        console.log('Successfully cached restaurant results');
+      }
+    } catch (error) {
+      console.log('Cache error (non-fatal):', error);
+    }
+
+    // Log search history
+    try {
+      await supabase.from('search_history').insert({
+        city: cacheKey,
+        search_query: `${lat},${lng},${radius}`,
+        results_count: detailedResults.length
+      });
+    } catch (error) {
+      console.log('Analytics logging error (non-fatal):', error);
+    }
+
+    // Transform to expected frontend format
+    const finalResults = detailedResults.map(restaurant => ({
+      id: restaurant.place_id,
+      name: restaurant.name,
+      cuisine: restaurant.cuisine,
+      price: restaurant.price_level || 2,
+      rating: Number(restaurant.rating),
+      reviews: restaurant.user_ratings_total,
+      lat: Number(restaurant.lat),
+      lon: Number(restaurant.lon),
+      address: restaurant.address,
+      hours: 'Call for hours',
+      isOpenNow: restaurant.is_open_now,
+      diet: restaurant.detected_diet,
+      vibes: restaurant.detected_vibes
+    }));
+
+    return new Response(JSON.stringify({ restaurants: finalResults }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
