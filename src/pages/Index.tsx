@@ -39,6 +39,10 @@ const Index = () => {
   const [currentCity, setCurrentCity] = useState<string>("");
   const [dataSource, setDataSource] = useState<'local' | 'global'>('local');
 
+  // Environment detection state
+  const [isInSandbox, setIsInSandbox] = useState(false);
+  const [locationPermissionState, setLocationPermissionState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
+
   useEffect(() => {
     const favs = localStorage.getItem("illinieatz:favorites");
     if (favs) setFavorites(new Set(JSON.parse(favs)));
@@ -47,6 +51,32 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem("illinieatz:favorites", JSON.stringify(Array.from(favorites)));
   }, [favorites]);
+
+  // Check environment and permissions on mount
+  useEffect(() => {
+    // Detect if running in iframe/sandbox
+    const inIframe = window !== window.top;
+    const inSandbox = window.location.hostname.includes('localhost') || 
+                     window.location.hostname.includes('127.0.0.1') ||
+                     window.location.hostname.includes('preview') ||
+                     inIframe;
+    
+    setIsInSandbox(inSandbox);
+    
+    // Check geolocation permission if available
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(result => {
+          setLocationPermissionState(result.state);
+          result.addEventListener('change', () => {
+            setLocationPermissionState(result.state);
+          });
+        })
+        .catch(() => {
+          setLocationPermissionState('unknown');
+        });
+    }
+  }, []);
 
   const shortlist = useMemo(() => {
     // Use either searched restaurants or sample restaurants
@@ -134,6 +164,7 @@ const Index = () => {
   };
 
   const requestLocation = async () => {
+    // Enhanced environment detection and messaging
     if (!("geolocation" in navigator)) {
       toast({ 
         title: "Location not available", 
@@ -142,8 +173,33 @@ const Index = () => {
       });
       return;
     }
+
+    // Check if we're in a restricted environment
+    if (isInSandbox) {
+      toast({ 
+        title: "Location restricted in preview", 
+        description: "Location access may not work in sandbox environments. Please search by city name instead.",
+        variant: "destructive"
+      });
+      // Still attempt, but with better error handling
+    }
+
+    // Check permission state before attempting
+    if (locationPermissionState === 'denied') {
+      toast({ 
+        title: "Location permission denied", 
+        description: "Location access is disabled. Please enable it in browser settings or search by city.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    toast({ title: "Requesting location...", description: "Please allow location access in your browser." });
+    toast({ 
+      title: "Requesting location...", 
+      description: isInSandbox ? 
+        "This may not work in preview environments. Try searching by city if it fails." :
+        "Please allow location access in your browser."
+    });
     
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -242,19 +298,28 @@ const Index = () => {
         console.error("Error code:", error.code);
         console.error("Error message:", error.message);
         
-        let errorTitle = "Location access denied";
-        let errorDescription = "Please allow location access or enter your city manually.";
+        let errorTitle = "Location access failed";
+        let errorDescription = "Please search by city name instead.";
         
-        // Handle different geolocation error types
+        // Enhanced error handling with sandbox context
         if (error.code === 1) { // PERMISSION_DENIED
           errorTitle = "Location permission denied";
-          errorDescription = "Please enable location access in your browser settings or search by city name.";
+          errorDescription = isInSandbox ? 
+            "Location access is often blocked in preview environments. Please search by city name." :
+            "Please enable location access in your browser settings or search by city name.";
         } else if (error.code === 2) { // POSITION_UNAVAILABLE
           errorTitle = "Location unavailable";
-          errorDescription = "Unable to determine your location. Please search by city name instead.";
+          errorDescription = isInSandbox ?
+            "Location services aren't available in this preview environment. Please search by city name." :
+            "Unable to determine your location. Please search by city name instead.";
         } else if (error.code === 3) { // TIMEOUT
           errorTitle = "Location request timeout";
           errorDescription = "Location request timed out. Please try again or search by city name.";
+        }
+        
+        // Update permission state
+        if (error.code === 1) {
+          setLocationPermissionState('denied');
         }
         
         toast({ 
@@ -264,9 +329,9 @@ const Index = () => {
         });
       },
       { 
-        enableHighAccuracy: false, // Changed to false for better compatibility
-        timeout: 10000, // Reduced timeout for faster feedback
-        maximumAge: 300000 // 5 minutes cache
+        enableHighAccuracy: false,
+        timeout: isInSandbox ? 5000 : 10000, // Shorter timeout in sandbox
+        maximumAge: 300000
       }
     );
   };
@@ -325,15 +390,16 @@ const Index = () => {
           <QuickPreferences onComplete={(p) => setPrefs(p)} onRequestLocation={requestLocation} />
         ) : (
           <section className="grid gap-8">
-            {/* City Search & Location */}
-            <Card className="p-5">
-              <div className="grid lg:grid-cols-4 gap-6">
+            {/* City Search & Location - Prominent placement */}
+            <Card className="p-6 border-2 border-primary/20">
+              <div className="space-y-6">
+                {/* Primary: City Search */}
                 <div>
-                  <h3 className="font-semibold mb-2">Search Any City</h3>
+                  <h3 className="font-semibold mb-3 text-lg">🌍 Search Restaurants Worldwide</h3>
                   <CitySearch onCitySearch={handleCitySearch} currentCity={currentCity} />
                   {currentCity && (
-                    <div className="mt-2 text-xs">
-                      <span className="text-primary">Showing results for: {currentCity}</span>
+                    <div className="mt-3 p-2 bg-primary/5 rounded-md">
+                      <span className="text-primary font-medium">📍 Showing results for: {currentCity}</span>
                       <Button variant="link" size="sm" className="h-auto p-0 ml-2" onClick={() => {
                         setDataSource('local');
                         setCurrentCity("");
@@ -343,26 +409,59 @@ const Index = () => {
                       </Button>
                     </div>
                   )}
+                  {isInSandbox && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                      <p className="text-sm text-amber-800">
+                        💡 <strong>Preview Environment:</strong> City search is recommended as location services may not work in this environment.
+                      </p>
+                    </div>
+                  )}
                 </div>
-            
-            {/* Location & filters */}
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Location (Optional)</h3>
+
+                {/* Secondary: Location Access */}
+                <div className="pt-4 border-t">
+                  <h3 className="font-semibold mb-2">📍 Use Your Location (Optional)</h3>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={requestLocation}><MapPin className="mr-1" /> Use my location</Button>
+                    <Button 
+                      variant={locationPermissionState === 'denied' ? "outline" : "default"} 
+                      size="sm" 
+                      onClick={requestLocation}
+                      disabled={locationPermissionState === 'denied'}
+                    >
+                      <MapPin className="mr-1" /> 
+                      {locationPermissionState === 'denied' ? 'Location Blocked' : 'Use My Location'}
+                    </Button>
                     {userLoc && (
-                      <Button variant="outline" size="sm" onClick={() => setUserLoc(null)}>Clear location</Button>
+                      <Button variant="outline" size="sm" onClick={() => setUserLoc(null)}>
+                        Clear Location
+                      </Button>
                     )}
                   </div>
                   {userLoc && (
-                    <p className="mt-1 text-xs text-green-600">Location set: {userLoc.lat.toFixed(4)}, {userLoc.lon.toFixed(4)}</p>
+                    <p className="mt-2 text-sm text-green-600 bg-green-50 p-2 rounded">
+                      ✅ Location set: {userLoc.lat.toFixed(4)}, {userLoc.lon.toFixed(4)}
+                    </p>
                   )}
-                  <p className="mt-2 text-xs text-muted-foreground">Click "Use my location" to let us access your current location.</p>
+                  {locationPermissionState === 'denied' && (
+                    <p className="mt-2 text-sm text-red-600">
+                      Location access is blocked. Please enable it in your browser settings or use city search.
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {isInSandbox ? 
+                      "Note: Location may not work in preview environments. City search is more reliable." :
+                      "Location helps find nearby restaurants and calculate distances."
+                    }
+                  </p>
                 </div>
+              </div>
+            
+            {/* Filters */}
+            <Card className="p-5">
+              <div className="grid md:grid-cols-2 gap-6">
 
                 <div>
-                  <h3 className="font-semibold mb-2 flex items-center gap-2"><SlidersHorizontal /> Filters</h3>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2"><SlidersHorizontal /> Price & Quality Filters</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="space-y-1">
                       <Label htmlFor="price">Max price</Label>
@@ -403,7 +502,7 @@ const Index = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Diet & vibes</h3>
+                  <h3 className="font-semibold mb-2">Diet & Vibes</h3>
                   <div className="flex flex-wrap gap-2 text-sm">
                     {(["halal","vegetarian","gluten-free","vegan"] as Diet[]).map((d) => (
                       <Button key={d} variant={filters.diet.includes(d) ? "hero" : "outline"} size="sm" onClick={() => {
@@ -421,13 +520,13 @@ const Index = () => {
                     <Label htmlFor="live">Live signals (busy now, wait times)</Label>
                   </div>
                 </div>
-                </div>
               </div>
               <div className="mt-4 flex justify-center">
                 <Button onClick={handleSearch} className="px-8">
                   🔍 Search Restaurants
                 </Button>
               </div>
+            </Card>
             </Card>
 
             {/* Trending */}

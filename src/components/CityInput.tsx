@@ -6,7 +6,7 @@ import { MapPin, Search, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
-  onCitySearch: (city: string, restaurants: any[]) => void;
+  onCitySearch: (restaurants: any[], city: string) => void;
   isLoading: boolean;
 }
 
@@ -25,7 +25,8 @@ const CityInput = ({ onCitySearch, isLoading }: Props) => {
     }
 
     try {
-      await onCitySearch(city.trim(), []);
+      // Call the city search with the expected parameters
+      await onCitySearch([], city.trim());
     } catch (error) {
       console.error("Search error:", error);
       toast({
