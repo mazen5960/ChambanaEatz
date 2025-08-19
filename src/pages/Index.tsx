@@ -56,7 +56,7 @@ const Index = () => {
     const base = restaurantsToUse.map((r) => {
       let score = 0;
       // prefs boost
-      if (prefs?.cuisinePref && prefs.cuisinePref !== "surprise") {
+      if (prefs?.cuisinePref && prefs.cuisinePref.length > 0 && !prefs.cuisinePref.includes("surprise")) {
         const prefMap: Record<string, string[]> = {
           asian: ["Japanese", "Chinese", "Vietnamese", "Thai", "Korean"],
           mexican: ["Mexican"],
@@ -68,9 +68,16 @@ const Index = () => {
           latin: ["Mexican", "Latin"],
           indian: ["Indian"],
           american: ["American"],
+          "fast-food": ["Fast Food"],
+          cafe: ["Cafe"],
           surprise: [],
         };
-        if (prefMap[prefs.cuisinePref].includes(r.cuisine)) score += 2;
+        
+        // Check if any of the user's preferences match the restaurant cuisine
+        const hasMatch = prefs.cuisinePref.some(pref => 
+          prefMap[pref]?.includes(r.cuisine)
+        );
+        if (hasMatch) score += 2;
       }
       if (prefs?.dress === "nice" && r.price >= 3) score += 1;
       if (prefs?.dress === "casual" && r.price <= 2) score += 1;
@@ -183,21 +190,21 @@ const Index = () => {
             return;
           }
 
-          // Transform restaurant data
+          // Transform restaurant data using the real API response
           const transformedRestaurants = restaurants.map((r: any) => ({
-            id: r.place_id,
+            id: r.id,
             name: r.name,
             cuisine: r.cuisine,
-            price: r.price_level || 2,
-            rating: r.rating || 4.0,
-            reviews: r.user_ratings_total || 0,
+            price: r.price,
+            rating: r.rating,
+            reviews: r.reviews,
             lat: r.lat,
             lon: r.lon,
             address: r.address,
-            hours: "Various",
-            isOpenNow: r.is_open_now ?? true,
-            diet: [],
-            vibes: ["casual"]
+            hours: r.hours,
+            isOpenNow: r.isOpenNow,
+            diet: r.diet || [],
+            vibes: r.vibes || []
           }));
 
           setSearchedRestaurants(transformedRestaurants);
@@ -316,7 +323,7 @@ const Index = () => {
 
       <main className="container space-y-10 pb-16">
         {!prefs ? (
-          <QuickPreferences onComplete={(p) => setPrefs(p)} />
+          <QuickPreferences onComplete={(p) => setPrefs(p)} onRequestLocation={requestLocation} />
         ) : (
           <section className="grid gap-8">
             {/* City Search & Location */}

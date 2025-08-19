@@ -18,20 +18,12 @@ export interface Restaurant {
 }
 
 export interface Preferences {
-  cuisinePref?:
-    | "asian"
-    | "mexican"
-    | "italian"
-    | "greek"
-    | "middle-eastern"
-    | "chinese"
-    | "japanese"
-    | "latin"
-    | "indian"
-    | "american"
-    | "surprise";
+  cuisinePref?: string[]; // Changed to array for multiple selections
   mode?: "dine-in" | "delivery";
   dress?: "casual" | "nice";
+  diet?: Diet[]; // Added diet preferences
+  vibes?: Vibe[]; // Added vibe preferences
+  locationRequested?: boolean; // Track if user wants to use their location
 }
 
 export interface Filters {

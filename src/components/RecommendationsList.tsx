@@ -43,7 +43,13 @@ const RecommendationsList = ({ items, favorites, onToggleFavorite }: Props) => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 text-sm">
-              <div className="flex items-center gap-1"><Star className="text-primary" /><span>{r.rating.toFixed(1)}</span><span className="text-muted-foreground">({r.reviews})</span></div>
+              <div className="flex items-center gap-1">
+                <Star className="text-primary" />
+                <span>{r.rating.toFixed(1)}</span>
+                <span className="text-muted-foreground">
+                  ({r.reviews}{r.reviews === 0 ? " - unreliable" : ""})
+                </span>
+              </div>
               {typeof r.distance === "number" && (
                 <div className="flex items-center gap-1"><MapPin className="text-primary" /><span>{r.distance.toFixed(1)} mi</span></div>
               )}
