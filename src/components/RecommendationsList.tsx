@@ -63,8 +63,12 @@ const RecommendationsList = ({ items, favorites, onToggleFavorite }: Props) => {
             <div className="mt-3 text-sm text-muted-foreground">{r.address}</div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <a href={googleMapsLink(r)} target="_blank" rel="noopener noreferrer"><MapPin /> Maps</a>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => window.open(googleMapsLink(r), '_blank')}
+            >
+              <MapPin /> Maps
             </Button>
             <Button asChild size="sm" variant="outline">
               <a href={uberLink(r)} target="_blank" rel="noopener noreferrer"><Car /> Uber</a>
