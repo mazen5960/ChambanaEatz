@@ -41,8 +41,8 @@ export function priceToSymbols(price: number) {
 
 export function googleMapsLink(r: Restaurant) {
   if (r.address) {
-    const address = encodeURIComponent(`${r.name}, ${r.address}`);
-    return `https://www.google.com/maps/search/${address}`;
+    const address = encodeURIComponent(r.address);
+    return `https://www.google.com/maps/search/?api=1&query=${address}`;
   }
   return `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}`;
 }
