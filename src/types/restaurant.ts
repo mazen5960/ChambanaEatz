@@ -39,9 +39,24 @@ export function priceToSymbols(price: number) {
   return "$".repeat(price);
 }
 
+export function googleMapsLink(r: Restaurant) {
+  if (r.address) {
+    const address = encodeURIComponent(`${r.name}, ${r.address}`);
+    return `https://www.google.com/maps/search/${address}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lon}`;
+}
+
 export function appleMapsLink(r: Restaurant) {
-  const q = encodeURIComponent(r.name);
-  return `https://maps.apple.com/?q=${q}&ll=${r.lat},${r.lon}`;
+  if (r.address) {
+    const q = encodeURIComponent(`${r.name}, ${r.address}`);
+    return `https://maps.apple.com/?q=${q}`;
+  }
+  return `https://maps.apple.com/?q=${encodeURIComponent(r.name)}&ll=${r.lat},${r.lon}`;
+}
+
+export function wazeLink(r: Restaurant) {
+  return `https://www.waze.com/ul?ll=${r.lat},${r.lon}&navigate=yes&zoom=17`;
 }
 
 export function uberLink(r: Restaurant) {

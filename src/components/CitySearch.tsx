@@ -57,21 +57,24 @@ const CitySearch = ({ onCitySearch, currentCity }: CitySearchProps) => {
       }
 
       // Transform cached restaurant data to match our Restaurant interface
-      const transformedRestaurants = restaurants.map((r: any) => ({
-        id: r.place_id,
-        name: r.name,
-        cuisine: r.cuisine,
-        price: r.price_level || 2,
-        rating: r.rating || 4.0,
-        reviews: r.user_ratings_total || 0,
-        lat: r.lat,
-        lon: r.lon,
-        address: r.address,
-        hours: "Various", // Simplified for now
-        isOpenNow: r.is_open_now ?? true,
-        diet: [], // Default empty array
-        vibes: ["casual"] // Default casual vibe
-      }));
+      const transformedRestaurants = restaurants.map((r: any) => {
+        console.log('Restaurant data from API:', r);
+        return {
+          id: r.place_id,
+          name: r.name,
+          cuisine: r.cuisine,
+          price: r.price_level || 2,
+          rating: r.rating || 4.0,
+          reviews: r.user_ratings_total || 0, // Use the actual API field name
+          lat: r.lat,
+          lon: r.lon,
+          address: r.address,
+          hours: "Various", // Simplified for now
+          isOpenNow: r.is_open_now ?? true,
+          diet: r.detected_diet || [], // Use actual API data
+          vibes: r.detected_vibes || ["casual"] // Use actual API data with fallback
+        };
+      });
 
       onCitySearch(transformedRestaurants, city.trim());
       

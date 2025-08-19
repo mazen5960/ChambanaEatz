@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { appleMapsLink, doordashSearchLink, priceToSymbols, uberLink, Restaurant } from "@/types/restaurant";
-import { MapPin, Star, ShoppingBag, Car, Heart, HeartOff } from "lucide-react";
+import { googleMapsLink, appleMapsLink, wazeLink, doordashSearchLink, priceToSymbols, uberLink, Restaurant } from "@/types/restaurant";
+import { MapPin, Star, ShoppingBag, Car, Heart, HeartOff, Navigation } from "lucide-react";
 
 interface Props {
   items: (Restaurant & { distance?: number; busyNow?: boolean; waitMins?: number })[];
@@ -64,7 +64,13 @@ const RecommendationsList = ({ items, favorites, onToggleFavorite }: Props) => {
           </CardContent>
           <CardFooter className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <a href={appleMapsLink(r)} target="_blank" rel="noopener noreferrer"><MapPin /> Maps</a>
+              <a href={googleMapsLink(r)} target="_blank" rel="noopener noreferrer"><MapPin /> Google</a>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <a href={appleMapsLink(r)} target="_blank" rel="noopener noreferrer"><MapPin /> Apple</a>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <a href={wazeLink(r)} target="_blank" rel="noopener noreferrer"><Navigation /> Waze</a>
             </Button>
             <Button asChild size="sm" variant="outline">
               <a href={uberLink(r)} target="_blank" rel="noopener noreferrer"><Car /> Uber</a>
