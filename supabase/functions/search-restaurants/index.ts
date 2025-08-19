@@ -30,20 +30,47 @@ interface PlaceResult {
 }
 
 serve(async (req) => {
+  console.log('=== Search Restaurants Function Started ===');
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { city, lat, lng, radius = 5000 } = await req.json();
+    const requestBody = await req.json();
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+    
+    const { city, lat, lng, radius = 5000 } = requestBody;
     
     if (!city && (!lat || !lng)) {
       throw new Error('Either city name or coordinates (lat, lng) are required');
     }
 
+    // Detailed API key validation
     const googleApiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
+    console.log('Google API key check:', googleApiKey ? 'API key found' : 'API key NOT found');
+    
     if (!googleApiKey) {
+      console.error('CRITICAL: Google Places API key not configured in environment variables');
       throw new Error('Google Places API key not configured');
+    }
+
+    // Test the API key with a simple request
+    console.log('Testing Google API key validity...');
+    try {
+      const testResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${googleApiKey}`
+      );
+      const testData = await testResponse.json();
+      console.log('API key test response status:', testData.status);
+      
+      if (testData.status === 'REQUEST_DENIED') {
+        console.error('API key is invalid or restricted:', testData.error_message);
+        throw new Error(`Google API key error: ${testData.error_message}`);
+      }
+    } catch (keyTestError) {
+      console.error('Failed to validate API key:', keyTestError);
+      throw new Error('Google API key validation failed');
     }
 
     // Initialize Supabase client

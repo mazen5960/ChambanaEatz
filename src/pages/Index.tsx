@@ -128,7 +128,11 @@ const Index = () => {
 
   const requestLocation = async () => {
     if (!("geolocation" in navigator)) {
-      toast({ title: "Location not available", description: "Your browser doesn't support geolocation." });
+      toast({ 
+        title: "Location not available", 
+        description: "Your browser doesn't support geolocation. Please search by city instead.",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -143,14 +147,23 @@ const Index = () => {
         toast({ title: "Location found!", description: "Searching for nearby restaurants..." });
         
         try {
-          console.log('Searching restaurants near coordinates:', lat, lon);
+          console.log('=== Starting restaurant search ===');
+          console.log('Coordinates:', { lat, lon });
+          
           const { data, error } = await supabase.functions.invoke('search-restaurants', {
             body: { lat, lng: lon, radius: 5000 }
           });
 
+          console.log('Supabase function response:', { data, error });
+
           if (error) {
-            console.error('Location search error:', error);
-            throw error;
+            console.error('Supabase function invocation error:', error);
+            throw new Error(`API Error: ${error.message || 'Unknown error occurred'}`);
+          }
+
+          if (!data) {
+            console.error('No data received from function');
+            throw new Error('No response data received from server');
           }
 
           if (data.error) {
@@ -159,11 +172,12 @@ const Index = () => {
           }
 
           const { restaurants } = data;
+          console.log(`Received ${restaurants?.length || 0} restaurants`);
           
-          if (restaurants.length === 0) {
+          if (!restaurants || restaurants.length === 0) {
             toast({
               title: "No restaurants found nearby",
-              description: "Try searching for a specific city instead.",
+              description: "Try expanding the search radius or searching for a specific city instead.",
               variant: "destructive",
             });
             return;
@@ -192,23 +206,62 @@ const Index = () => {
           
           toast({
             title: `Found ${restaurants.length} nearby restaurants`,
-            description: "Restaurants loaded based on your location",
+            description: "Real restaurant data loaded successfully!",
           });
           
         } catch (error: any) {
           console.error('Error searching nearby restaurants:', error);
+          
+          // Provide more specific error messages
+          let errorMessage = "Please try again or search by city name.";
+          if (error.message?.includes('API key')) {
+            errorMessage = "API configuration issue. Please contact support.";
+          } else if (error.message?.includes('ZERO_RESULTS')) {
+            errorMessage = "No restaurants found in your area. Try searching by city.";
+          }
+          
           toast({
             title: "Failed to load nearby restaurants",
-            description: error.message || "Please try again or search by city name.",
+            description: `${error.message || 'Unknown error'} ${errorMessage}`,
             variant: "destructive",
           });
+          
+          // Keep user location even if restaurant search fails
+          console.log('Location preserved despite search failure');
         }
       },
       (error) => {
-        console.error("Geolocation error:", error);
-        toast({ title: "Location access denied", description: "Please allow location access or enter your city manually.", variant: "destructive" });
+        console.error("Geolocation error details:", error);
+        
+        let errorTitle = "Location access denied";
+        let errorDescription = "Please allow location access or enter your city manually.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorTitle = "Location permission denied";
+            errorDescription = "Please enable location access in your browser settings or search by city name.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorTitle = "Location unavailable";
+            errorDescription = "Unable to determine your location. Please search by city name instead.";
+            break;
+          case error.TIMEOUT:
+            errorTitle = "Location request timeout";
+            errorDescription = "Location request timed out. Please try again or search by city name.";
+            break;
+        }
+        
+        toast({ 
+          title: errorTitle, 
+          description: errorDescription,
+          variant: "destructive" 
+        });
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: 15000, // Increased timeout
+        maximumAge: 60000 
+      }
     );
   };
 
