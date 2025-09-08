@@ -1,71 +1,36 @@
-# Welcome to your Lovable project
+IlliniEatz is a food discovery and social recommendation app built for the UIUC community. Powered by the GPT-4.1 Nano API, the app delivers personalized restaurant recommendations based on diet, budget, and user preferences. Users can also share meals, follow peers, and discover trending eats around campus.
 
-## Project info
+Features
 
-**URL**: https://lovable.dev/projects/49c28aa6-3506-46ec-8b63-c103bc0f08ff
+Personalized Recommendations
 
-## How can I edit this code?
+AI-powered suggestions tailored by diet, budget, and food preferences.
 
-There are several ways of editing your application.
+Social Meal Feed
 
-**Use Lovable**
+Real-time sharing of meals with peer recommendations.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/49c28aa6-3506-46ec-8b63-c103bc0f08ff) and start prompting.
+User Growth & Engagement
 
-Changes made via Lovable will be committed automatically to this repo.
+Iterative improvements based on beta testing feedback (20+ testers).
 
-**Use your preferred IDE**
+Achieved 60% month-over-month growth in daily active users.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Boosted Discovery
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Social feed increased discovery by 50% and activation by 70%.
 
-Follow these steps:
+Tech Stack
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Frontend: Figma (design prototypes), React (planned for scaling)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Backend: Python + Supabase
 
-# Step 3: Install the necessary dependencies.
-npm i
+AI Layer: GPT-4.1 Nano API
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Database: PostgreSQL (via Supabase)
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/49c28aa6-3506-46ec-8b63-c103bc0f08ff) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
+Hosting: (add if deployed, e.g., Vercel, Heroku, etc.)
 Yes, you can!
 
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
