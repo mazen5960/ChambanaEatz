@@ -1,4 +1,4 @@
-IlliniEatz is a food discovery and social recommendation app built for the UIUC community. Powered by the GPT-4.1 Nano API, the app delivers personalized restaurant recommendations based on diet, budget, and user preferences. Users can also share meals, follow peers, and discover trending eats around campus.
+ChambanaEatz is a food discovery and social recommendation app built for the UIUC community. Powered by the GPT-4.1 Nano API, the app delivers personalized restaurant recommendations based on diet, budget, and user preferences. Users can also share meals, follow peers, and discover trending eats around campus.
 
 Features
 
